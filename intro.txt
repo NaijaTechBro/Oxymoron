@@ -1,0 +1,26 @@
+LECTURES IN QUANTITATIVE TRADING 101
+
+CODING
+Programming in Python
+Some advanced Python
+
+TRADING
+Basics of Quant Trading
+Risk management
+
+Previous Udemy Course: 
+focus was on building an end-to-end system for Trading
+>> getting data
+>> implement strategies (multiple) *
+>> combine different strategies *
+>> submit orders through automated API execution
+
+Difference
+>> we will be focused *
+>> in depth discussion of alpha research and trading
+>> more explanations on why we are doing what we are doing
+>> there will be focus on the programming and the mathematical aspect of things as opposed to the tech stack
+
+Similarities
+>> very hands on lecture
+>> curricula is not structurally pre-determined, so we will be programming on the fly and iteratively improving our system
