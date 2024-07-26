@@ -2,7 +2,6 @@ import numpy as np
 import pandas as pd
 from datetime import timedelta
 from utils import get_pnl_stats
-
 class Alpha1():
     
     def __init__(self, insts, dfs, start, end):
@@ -35,7 +34,7 @@ class Alpha1():
             )
         )
         '''
-        op4 = []
+        op4s = []
         for inst in self.insts:
             df = pd.DataFrame(index=trade_range)
             
@@ -48,13 +47,19 @@ class Alpha1():
             self.dfs[inst] = df.join(self.dfs[inst]).ffill().bfill()
             self.dfs[inst]["ret"] = -1 + self.dfs[inst]["close"] / self.dfs[inst]["close"].shift(1)
             self.dfs[inst]["op4"] = op4
-            op4._append(self.dfs[inst["op4"]])
+            op4s.append(self.dfs[inst]["op4"])
             sampled = self.dfs[inst]["close"] != self.dfs[inst]["close"].shift(1).bfill()
             eligible = sampled.rolling(5).apply(lambda x: int(np.any(x))).fillna(0)
             self.dfs[inst]["eligible"] = eligible.astype(int) & (self.dfs[inst]["close"] > 0).astype(int)
             
         temp_df = pd.concat(op4s, axis=1)
-        input(temp_df)
+        temp_df.columns = self.insts
+        temp_df = temp_df.replace(np.inf, 0).replace(np.inf, 0)
+        zscore = lambda x: (x - np.mean(x))/np.std(x)
+        cszcre_df = temp_df.fillna(method="ffill").apply(zscore, axis=1)
+        for inst in self.insts:
+            self.dfs[inst]["alpha"] = cszcre_df[inst].rolling(12).mean() * -1
+            self.dfs[inst]["eligible"] = self.dfs[inst]["eligible"] & (~pd.isna(self.dfs[inst]["alpha"]))
         return 
 
     def run_simulation(self):
@@ -82,9 +87,8 @@ class Alpha1():
                 )
             
             alpha_scores = {}
-            import random
             for inst in eligibles:
-                alpha_scores[inst] = random.uniform(0,1)
+                alpha_scores[inst] = self.dfs[inst].loc[date, "alpha"]
             alpha_scores = {k:v for k,v in sorted(alpha_scores.items(),key=lambda pair:pair[1])}
             alpha_long = list(alpha_scores.keys())[-int(len(eligibles)/4):]
             alpha_short = list(alpha_scores.keys())[:int(len(eligibles)/4)]
