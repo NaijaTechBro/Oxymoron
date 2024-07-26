@@ -81,8 +81,7 @@ class Alpha3():
             for inst in non_eligibles:
                 portfolio_df.loc[i, "{} w".format(inst)] = 0
                 portfolio_df.loc[i, "{} units".format(inst)] = 0
-            
-            input(alpha_scores)
+                
             absolute_scores = np.abs([score for score in alpha_scores.values()])
             forecast_chips = np.sum(absolute_scores)
             nominal_tot = 0
@@ -92,7 +91,7 @@ class Alpha3():
                 position = forecast * dollar_allocation / self.dfs[inst].loc[date,"close"]
                 portfolio_df.loc[i, inst + " units"] = position 
                 nominal_tot += abs(position * self.dfs[inst].loc[date,"close"])
-                
+
             for inst in eligibles:
                 units = portfolio_df.loc[i, inst + " units"]
                 nominal_inst = units * self.dfs[inst].loc[date,"close"]
