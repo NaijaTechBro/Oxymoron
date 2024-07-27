@@ -2,6 +2,7 @@ import pytz
 import requests
 import threading
 import pandas as pd
+import numpy as np
 import yfinance  # type: ignore
 import threading
 from datetime import datetime
@@ -82,6 +83,7 @@ def get_ticker_dfs(start, end):
     return tickers, ticker_dfs
     # Alpha Backtest Usecase
 from utils import Alpha
+from utils import load_pickle
 period_start = datetime(2010,1,1, tzinfo=pytz.utc)
 period_end = datetime.now(pytz.utc)
 tickers, ticker_dfs = get_ticker_dfs(start = period_start, end = period_end)
@@ -97,5 +99,31 @@ alpha2 = Alpha2(insts=tickers, dfs=ticker_dfs, start=period_start, end=period_en
 alpha3 = Alpha3(insts=tickers, dfs=ticker_dfs, start=period_start, end=period_end)
 
 df1 = alpha1.run_simulation()
-df2 = alpha2.run_simulation()
-df3 = alpha3.run_simulation()
+
+exit()
+# df2 = alpha2.run_simulation()
+# df3 = alpha3.run_simulation()
+df1, df2, df3  = load_pickle("simulations.obj") #(df1, df2, df3))
+
+import matplotlib.pyplot as plt # type: ignore
+
+plt.plot(df1.capital)
+plt.plot(df2.capital)
+plt.plot(df3.capital)
+plt.show()
+plt.close()
+
+nzr = lambda df: df.capital_ret.loc[df.capital_ret != 0].fillna(0)
+def plot_vol(r):
+    vol = r.rolling(25).std() * np.sqrt(253)
+    plt.plot(vol)
+    plt.show()
+    plt.close()
+    
+plot_vol(nzr(df1))
+plot_vol(nzr(df2))
+plot_vol(nzr(df3))
+
+print(nzr(df1).std()*np.sqrt(253), nzr(df2).std()*np.sqrt(253), nzr(df3).std()*np.sqrt(253))
+
+    
