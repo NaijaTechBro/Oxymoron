@@ -36,17 +36,21 @@ class AbstractImplementationException(Exception):
     pass
 class Alpha():
     
-    def __init__(self, insts, dfs, start, end):
+    def __init__(self, insts, dfs, start, end, portfolio_vol=0.20):
         self.insts = insts
         self.dfs = deepcopy(dfs)
         self.start = start 
         self.end = end
+        self.portfolio_vol = portfolio_vol
 
     def init_portfolio_settings(self, trade_range):
         portfolio_df = pd.DataFrame(index=trade_range)\
             .reset_index()\
             .rename(columns={"index":"datetime"})
         portfolio_df.loc[0,"capital"] = 10000
+        portfolio_df.loc[0,"day_pnl"] = 0.0
+        portfolio_df.loc[0,"capital_ret"] = 0.0
+        portfolio_df.loc[0,"nominal_ret"] = 0.0
         return portfolio_df
     
     def pre_compute(self, trade_range):
@@ -63,8 +67,12 @@ class Alpha():
         
         for inst in self.insts:
             df = pd.DataFrame(index=trade_range)
+            inst_vol = (-1 * self.dfs[inst]["close"]/self.dfs[inst]["close"].shift(1)).rolling(30).std()
             self.dfs[inst] = df.join(self.dfs[inst]).ffill().bfill()
             self.dfs[inst]["ret"] = -1 + self.dfs[inst]["close"] / self.dfs[inst]["close"].shift(1)
+            self.dfs[inst]["vol"] = inst_vol
+            self.dfs[inst]["vol"] = self.dfs[inst]["vol"].ffill().fillna(0)
+            self.dfs[inst]["vol"] = np.where(self.dfs[inst]["vol"] < 0.005, 0.05, self.dfs[inst]["vol"])
             sampled = self.dfs[inst]["close"] != self.dfs[inst]["close"].shift(1).bfill()
             eligible = sampled.rolling(5).apply(lambda x: int(np.any(x))).fillna(0)
             self.dfs[inst]["eligible"] = eligible.astype(int) & (self.dfs[inst]["close"] > 0).astype(int)
@@ -96,22 +104,20 @@ class Alpha():
                 )
             forecasts, forecast_chips = self.compute_signal_distribution(eligibles, date)
             
-            alpha_scores = {}
-            for inst in eligibles:
-                alpha_scores[inst] = random.uniform(0,1)
-            alpha_scores = {k:v for k,v in sorted(alpha_scores.items(),key=lambda pair:pair[1])}
-            alpha_long = list(alpha_scores.keys())[-int(len(eligibles)/4):]
-            alpha_short = list(alpha_scores.keys())[:int(len(eligibles)/4)]
-            
             for inst in non_eligibles:
                 portfolio_df.loc[i, "{} w".format(inst)] = 0
                 portfolio_df.loc[i, "{} units".format(inst)] = 0
             
+            vol_target = (self.portfolio_vol / np.sqrt(253))  * portfolio_df.loc[i, "capital"]
+            
             nominal_tot = 0
             for inst in eligibles:
                 forecast = forecasts[inst]
-                dollar_allocation = portfolio_df.loc[i,"capital"] / forecast_chips if forecast_chips !=0 else 0
-                position = forecast * dollar_allocation / self.dfs[inst].loc[date,"close"]
+                scaled_forecast = forecast / forecast_chips if forecast_chips !=0 else 0
+                position = scaled_forecast \
+                    * vol_target \
+                    / (self.dfs[inst].loc[date, "vol"] * self.dfs[inst].loc[date,"close"] )
+                
                 portfolio_df.loc[i, inst + " units"] = position 
                 nominal_tot += abs(position * self.dfs[inst].loc[date,"close"])
 
